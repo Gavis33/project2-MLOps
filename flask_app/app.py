@@ -1,0 +1,95 @@
+import os
+import time
+import pickle
+import mlflow
+import dagshub
+import pandas as pd
+from flask import Flask, render_template, request
+from prometheus_client import generate_latest, Counter, Histogram, CollectorRegistry, CONTENT_TYPE_LATEST 
+from templates.normalize import normalize_text
+
+import warnings
+warnings.simplefilter("ignore", UserWarning)
+warnings.filterwarnings("ignore")
+
+# Production code
+dagshub_token = os.getenv("PROJECT2_TEST")
+if not dagshub_token:
+    raise EnvironmentError('Dagshub token not found. Please set the "PROJECT2_TEST" environment variable.')
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+
+mlflow.set_tracking_uri('https://dagshub.com/Gavis33/project2-MLOps.mlflow')
+
+# Local code
+# mlflow.set_tracking_uri('https://dagshub.com/Gavis33/project2-MLOps.mlflow')
+# dagshub.init(repo_owner="Gavis33", repo_name="project2-MLOps", mlflow=True)
+
+app = Flask(__name__)
+
+registry = CollectorRegistry()
+
+REQUEST_COUNT = Counter(
+    'app_request_count', 'Number of requests', ["method", "endpoint"], registry=registry
+)
+
+REQUEST_LATENCY = Histogram(
+    'app_request_latency_seconds', 'Request latency in seconds', ["endpoint"], registry=registry
+)
+
+PREDICTION_COUNT = Counter(
+    'model_prediction_count', 'Number of predictions for each class', ["prediction"], registry=registry
+)
+
+# Model and vectorizer setup
+model_name = 'project2_model'
+def get_latest_model_version(model_name):
+    client = mlflow.MlflowClient()
+    latest_version = client.get_latest_versions(model_name, stages=["Production"])
+    if not latest_version:
+        latest_version = client.get_latest_versions(model_name, stages=["Staging"])
+    return latest_version[0].version if latest_version else None
+
+model_version = get_latest_model_version(model_name)
+model_uri = f"models:/{model_name}/{model_version}"
+
+print(f'Fetching model from {model_uri}')
+
+model = mlflow.pyfunc.load_model(model_uri)
+vectorizer = pickle.load(open('models/vectorizer.pkl', 'rb'))
+
+@app.route('/')
+def home():
+    REQUEST_COUNT.labels(method="GET", endpoint="/").inc()
+    start_time = time.time()
+    response = render_template('index.html', result=None)
+    REQUEST_LATENCY.labels(endpoint="/").observe(time.time() - start_time)
+    return response
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    REQUEST_COUNT.labels(method="POST", endpoint="/predict").inc()
+    start_time = time.time()
+
+    text = request.form['text']
+    text = normalize_text(text)
+
+    features = vectorizer.transform([text])
+    features_df = pd.DataFrame(features.toarray(), columns=[str(i) for i in range(features.shape[1])])
+
+    prediction = model.predict(features_df)[0]
+
+    PREDICTION_COUNT.labels(prediction=str(prediction)).inc()
+    REQUEST_LATENCY.labels(endpoint="/predict").observe(time.time() - start_time)
+    
+    response = render_template('index.html', result=prediction)
+    return response
+
+@app.route('/metrics')
+def metrics():
+    """Endpoint to expose Prometheus metrics."""
+    return generate_latest(registry), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=5000)

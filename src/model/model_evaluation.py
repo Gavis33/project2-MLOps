@@ -14,20 +14,20 @@ from src.logger import logging
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
 
 # Production code
-# dagshub_token = os.getenv("PROJECT2_TEST")
-# if not dagshub_token:
-#     raise ValueError("Dagshub token not found. Please set the 'PROJECT2_TEST' environment variable.")
+dagshub_token = os.getenv("PROJECT2_TEST")
+if not dagshub_token:
+    raise ValueError("Dagshub token not found. Please set the 'PROJECT2_TEST' environment variable.")
 
-# os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
-# dagshub_url = "https://dagshub.com/Gavis33/project2-MLOps.mlflow"
-# mlflow.set_tracking_uri(dagshub_url)
-
-# local code
 dagshub_url = "https://dagshub.com/Gavis33/project2-MLOps.mlflow"
 mlflow.set_tracking_uri(dagshub_url)
-dagshub.init(repo_owner="Gavis33", repo_name="project2-MLOps", mlflow=True)
+
+# local code
+# dagshub_url = "https://dagshub.com/Gavis33/project2-MLOps.mlflow"
+# mlflow.set_tracking_uri(dagshub_url)
+# dagshub.init(repo_owner="Gavis33", repo_name="project2-MLOps", mlflow=True)
 
 def load_model(file_path: str):
     try:
