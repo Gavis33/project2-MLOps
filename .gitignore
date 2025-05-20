@@ -1,5 +1,14 @@
 zProjectflow.txt
 zGuide.txt
+
+notebooks/
+data/
+models/
+
+S3_local/
+reports/
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
