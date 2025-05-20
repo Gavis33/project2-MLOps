@@ -59,7 +59,8 @@ def main():
         test_size = params['data_ingestion']['test_size']
         # test_size = 0.2
 
-        df = load_data(data_url='./data/IMDB.csv')
+        df = load_data(data_url='./assets/IMDB.csv')
+        print(df.head())
         # s3 = s3_connection.s3Operation('bucket-name', 'accesskey', 'secretkey')
         # df = s3.fetch_data_from_s3('data.csv')
 
