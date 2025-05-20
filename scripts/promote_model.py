@@ -25,7 +25,7 @@ def promote_model():
         )
 
     client.transition_model_version_stage(
-        model_name=model_name,
+        name=model_name,
         version=latest_version_in_staging,
         stage="Production"
         )
