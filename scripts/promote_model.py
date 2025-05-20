@@ -1,36 +1,46 @@
+# promote model
+
 import os
 import mlflow
 
 def promote_model():
-    dagshub_token = os.getenv("PROJECT2_TEST")
+    # Set up DagsHub credentials for MLflow tracking
+    dagshub_token = os.getenv("CAPSTONE_TEST")
     if not dagshub_token:
-        raise EnvironmentError('Dagshub token not found. Please set the "PROJECT2_TEST" environment variable.')
+        raise EnvironmentError("CAPSTONE_TEST environment variable is not set")
 
     os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
     os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
-    mlflow.set_tracking_uri('https://dagshub.com/Gavis33/project2-MLOps.mlflow')
+    dagshub_url = "https://dagshub.com"
+    repo_owner = "vikashdas770"
+    repo_name = "YT-Capstone-Project"
+
+    # Set up MLflow tracking URI
+    mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 
     client = mlflow.MlflowClient()
-    model_name = 'project2_model'
 
-    latest_version_in_staging = client.get_latest_versions(model_name, stages=["Staging"])[0].version
+    model_name = "my_model"
+    # Get the latest version in staging
+    latest_version_staging = client.get_latest_versions(model_name, stages=["Staging"])[0].version
 
-    production_versions = client.get_latest_versions(model_name, stages=["Production"])
-    for production_version in production_versions:
+    # Archive the current production model
+    prod_versions = client.get_latest_versions(model_name, stages=["Production"])
+    for version in prod_versions:
         client.transition_model_version_stage(
             name=model_name,
-            version=production_version.version,
+            version=version.version,
             stage="Archived"
         )
 
+    # Promote the new model to production
     client.transition_model_version_stage(
         name=model_name,
-        version=latest_version_in_staging,
+        version=latest_version_staging,
         stage="Production"
-        )
-
-    print(f'Model version {latest_version_in_staging} promoted to Production')
+    )
+    print(f"Model version {latest_version_staging} promoted to Production")
 
 if __name__ == "__main__":
     promote_model()
